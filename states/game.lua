@@ -10,7 +10,10 @@ function game:enter()
     self.spreadPasses = 8
     self.spreadAmount = 0.3
 
-    self.gravity = 800
+    self.objectDamping = 0.97
+    self.objectHorizontalSpeed = 10000
+
+    self.gravity = 80
 
     self.waves = {}
     for i = 1, self.segments + 1 do
@@ -61,7 +64,7 @@ function game:update(dt)
 
     for k, object in pairs(self.objects) do
         object.y = object.y + object.velocity*dt
-        object.velocity = object.velocity + object.grav*dt
+        object.velocity = (object.velocity + object.grav) * self.objectDamping
 
         local closest = 1
         for i = 2, #self.waves do
@@ -70,12 +73,50 @@ function game:update(dt)
             end
         end
 
+        local leftGreater, rightGreater = false, false
+
+        if closest > 1 then
+            if self.waves[closest-1].position > self.waves[closest].position then
+                leftGreater = true
+            end
+        end
+        if closest < #self.waves then
+            if self.waves[closest+1].position > self.waves[closest].position then
+                rightGreater = true
+            end
+        end
+
+        local speed = self.objectHorizontalSpeed * dt
+
         if object.y/love.graphics.getHeight() > self.waves[closest].position then
+            if leftGreater and rightGreater then
+                if self.waves[closest-1].position > self.waves[closest+1].position then
+                    object.x = object.x - speed * (self.waves[closest].position-self.waves[closest-1].position)
+                else
+                    object.x = object.x + speed * (self.waves[closest].position-self.waves[closest-1].position)
+                end
+            elseif leftGreater then
+                object.x = object.x - speed * (self.waves[closest].position-self.waves[closest+1].position)
+            elseif rightGreater then
+                object.x = object.x + speed * (self.waves[closest].position-self.waves[closest+1].position)
+            end
+        end
+
+
+        if object.y/love.graphics.getHeight() + .05 < self.waves[closest].position and math.abs(object.grav) < 0.001 then
+            object.grav = self.gravity
+        elseif object.y/love.graphics.getHeight() > self.waves[closest].position then
             if not object.hasSplashed then
                 self:splash(closest, object.velocity/love.graphics.getHeight())
                 object.hasSplashed = true
-            else
-                object.grav = self.gravity / 2
+            elseif object.heading == "down" then
+                object.heading = "up"
+                object.grav = -object.grav/2
+            end
+        else
+            if object.heading == "up" then
+                object.heading = "down"
+                object.grav = -object.grav/2
             end
         end
     end
@@ -86,7 +127,7 @@ function game:keypressed(key, code)
 end
 
 function game:mousepressed(x, y, mbutton)
-    table.insert(self.objects, {x=x, y=y,velocity=0,grav=self.gravity,hasSplashed=false})
+    table.insert(self.objects, {x=x, y=y,velocity=0,grav=self.gravity,hasSplashed=false,heading="down"})
 end
 
 function game:draw()
