@@ -90,6 +90,7 @@ function game:mousepressed(x, y, mbutton)
 end
 
 function game:draw()
+    love.graphics.setBackgroundColor(255, 255, 255)
     love.graphics.setColor(0, 0, 255)
 
     for i = 1, #self.waves - 1 do
